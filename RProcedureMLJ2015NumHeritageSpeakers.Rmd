@@ -1,0 +1,162 @@
+---
+title: "RProcedureMLJ2015NumHeritageSpeakers"
+author: "Tomonori Nagano"
+date: "2015-12-31"
+output:
+  github_document: default
+  pdf_document:
+    latex_engine: xelatex
+---
+
+```{r global_options, include = FALSE}
+knitr::opts_chunk$set(message=FALSE,
+fig.align="center",
+fig.dim = c(10, 8)
+)
+```
+
+# RProcedureMLJ2015NumHeritageSpeakers
+- R scripts to analyze heritage language spakers in the U.S.
+
+## Overview
+- Project: Source codes for "Demographics of Adult Heritage Language Speakers in the United States: Differences by Region and Language and Their Implications" (The Modern Language Journal, vol. 99, No. 4)
+	- Nagano, T. (2015). Demographics of Adult Heritage Language Speakers in the United States: Differences by Region and Language and their Implications. <i>The Modern Language Journal</i>, 99(4), 771-792. 
+- Script purpose: This R script will analyze the U.S. Census/ACE data and compute the number of adult heritage language speakers in the U.S. in different regions, at different time period (1980-2010), and by languages. See the following article for more information: Nagano, T. (2015). Demographics of Adult Heritage Language Speakers in the United States: Differences by Region and Language and their Implications. The Modern Language Journal, 99(4), 771-792.
+- Note: Download the U.S. Census/ACE data from the IPUMS website https://usa.ipums.org. 
+	- For the published article, I used the following data:
+		- 1980: 5% state
+		- 1990: 5%
+		- 2000: 5%
+		- 2010: ACS
+	- The variables to extract in each dataset are: YEAR, DATANUM, SERIAL, HHWT, REGION, STATEFIP, COUNTY, METRO, METAREA (general), METAREAD (detailed), CITY, CITYPOP, CONSPUMA, CNTRY, GQ, NFAMS, MULTGEN (general), MULTGEND (detailed), PERNUM, PERWT, FAMSIZE, NCHILD, NCHLT5, FAMUNIT, ELDCH, YNGCH, NSIBS, MOMLOC, POPLOC, SUBFAM, RELATE (general), RELATED (detailed), SEX, AGE, MARST, HISPAN (general), HISPAND (detailed), BPL (general), BPLD (detailed), ANCESTR1 (general), ANCESTR1D (detailed), ANCESTR2 (general), ANCESTR2D (detailed), CITIZEN, YRIMMIG, YRSUSA1, YRSUSA2, LANGUAGE (general), LANGUAGED (detailed), SPEAKENG, RACESING (general), RACESINGD (detailed), EDUC (general), EDUCD (detailed), GRADEATT (general), GRADEATTD (detailed), OCC, IND, INCTOT, FTOTINC, POVERTY, OCCSCORE, and SEI
+	- Download the data as SPSS file (which can be read by R). The full data (about 2G-3G) will be extremely large and you won't be able to process them unless you have a very powerful computer. Use sampled/partial data with the "Customize Sample Size" function on IPUMS if necessary.
+	- Screenshot of the IPUMS USA page ("Customize Sample Size")
+	![IPUMS screenshot](https://github.com/tnagano22/hl-demographics/blob/main/images/IPUMSScreenshot.jpg?raw=true)
+
+## Data
+- In the "data" folder, you can find sample data from the IPUMS USA page (0.3%-0.5% data). They are all in the SPSS data format (.sav). Unarchive them and change their filenames accordingly. Please note that they are all tiny sample data and may not show exactly the same results as those in the published article (they should be very close, though.)
+- For a complete analysis, go to the IPUMS USA (https://usa.ipums.org/usa/) and download the whole data files from their website.
+
+## Setting up the environment
+
+```{r echo=TRUE, results='hide', message=FALSE}
+# clear the cache
+rm(list = ls())
+
+# set the current workd directly
+#setwd("~/Desktop")
+setwd("~/Dropbox/Documents/USB/600Research/618ResearchHeritageLanguage")
+
+# loading required packages (install with install.packages("xxxx") if the package is not installed)
+library(ggplot2); library(gdata); library(xtable); library(gplots); library(foreign); library(ineq);
+```
+
+## Loading data
+
+- Load the data. Run the script several times by changing the "fileYear" variable. 
+
+```{r}
+# loading the data file (full data might take a lot of time to load)
+# update fileYear to 1980, 1990, 2000, or 2010  
+fileYear="1980"
+thisData <- drop.levels(as.data.frame(read.spss(paste("dataIPUMS2014/DATA_DOWNLOADED_FROM_IPUMS_SAMPLE",fileYear,".sav",sep=""))),reorder=FALSE)
+head(thisData)
+```
+
+## Pre-processing/Clearning data
+```{r}
+# Creating new variables
+# Wyoming is 51 and American Samoa (52), Guam (53), Puerto Rico (54), and Virgin Islands (55)
+USStates <- c("Alabama","Alaska","Arizona","Arkansas","California","Colorado","Connecticut","Delaware","District of Columbia","Florida","Georgia","Hawaii","Idaho","Illinois","Indiana","Iowa","Kansas","Kentucky","Louisiana","Maine","Maryland","Massachusetts","Michigan","Minnesota","Mississippi","Missouri","Montana","Nebraska","Nevada","New Hampshire","New Jersey","New Mexico","New York","North Carolina","North Dakota","Ohio","Oklahoma","Oregon","Pennsylvania","Rhode Island","South Carolina","South Dakota","Tennessee","Texas","Utah","Vermont","Virginia","Washington","West Virginia","Wisconsin","Wyoming","American Samoa","Guam","Puerto Rico")
+thisData$USBorn <- thisData$BPL %in% USStates
+thisData$AGE_ORIG <- thisData$AGE
+thisData$AGE <- as.numeric(levels(thisData$AGE))[thisData$AGE]
+thisData[is.na(thisData$AGE),"AGE"] <- 0	# "less than 1 year old"
+thisData$ADULT <- thisData$AGE > 18
+thisData$YRIMMIG_ORIG <- thisData$YRIMMIG
+if (fileYear == "1980"){
+	levels(thisData$YRIMMIG) <- c(NA,"1949","1959","1964","1969","1974","1980")
+} else if (fileYear == "1990"){
+	levels(thisData$YRIMMIG) <- c(NA,"1949","1959","1964","1969","1974","1979","1981","1984","1986","1990")
+} else if (fileYear == "2000"){
+	levels(thisData$YRIMMIG) <- c("N/A","1910","1914","1919","1920","1921","1922","1923","1924","1925","1926","1927","1928","1929","1930","1935","1936","1937","1938","1939","1940","1941","1942","1943","1944","1945","1946","1947","1948","1949","1950","1951","1952","1953","1954","1955","1956","1957","1958","1959","1960","1961","1962","1963","1964","1965","1966","1967","1968","1969","1970","1971","1972","1973","1974","1975","1976","1977","1978","1979","1980","1981","1982","1983","1984","1985","1986","1987","1988","1989","1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000")
+} else if (fileYear == "2010"){
+	levels(thisData$YRIMMIG) <- c(NA,"1919","1920","1921","1922","1923","1924","1925","1926","1927","1928","1929","1930","1932","1934","1935","1936","1937","1938","1939","1940","1941","1942","1943","1944","1945","1946","1947","1948","1949","1950","1951","1952","1953","1954","1955","1956","1957","1958","1959","1960","1961","1962","1963","1964","1965","1966","1967","1968","1969","1970","1971","1972","1973","1974","1975","1976","1977","1978","1979","1980","1981","1982","1983","1984","1985","1986","1987","1988","1989","1990","1991","1992","1993","1994","1995","1996","1997","1998","1999","2000","2001","2002","2003","2004","2005","2006","2007","2008","2009","2010")
+}
+```
+
+## Defining heritage speakers in the data and analyzing them by race, states, regions, and PUMA
+
+- See the article for more discussion on how to define heritage speakers using the Census/ACS data.
+
+```{r}
+# Adult heritage language speakers based on the definition by Nagano (2015)
+thisData$YRIMMIG <- as.numeric(levels(thisData$YRIMMIG))[thisData$YRIMMIG]
+thisData$YRIMMIG <- as.numeric(fileYear)-as.numeric(thisData$YRIMMIG)
+thisData$IMMIGADULT <- thisData$YRIMMIG > 18
+thisData[is.na(thisData$IMMIGADULT),"IMMIGADULT"] <- FALSE
+thisData$SPEAKENGWell <- thisData$SPEAKENG == "Yes, speaks very well" | thisData$SPEAKENG == "Yes, speaks well"
+thisData$SPEAKNoENG <- thisData$SPEAKENG == "Does not speak English"
+thisData$SPEAKHL <- !(thisData$LANGUAGE == "N/A or blank" | thisData$LANGUAGE == "English")
+
+# checking states, counties, and CONSPUMA
+length(levels(thisData$STATEFIP))
+mean(xtabs(PERWT ~ STATEFIP, data=thisData))
+sqrt(var(xtabs(PERWT ~ STATEFIP, data=thisData)))
+length(levels(as.factor(thisData$COUNTY)))
+mean(xtabs(PERWT ~ COUNTYICP, data=thisData))
+sqrt(var(xtabs(PERWT ~ COUNTYICP, data=thisData)))
+
+# HL conditions: age of 18 or above, speak a HL at home, not "Does not speak English", and not immigrated after 18
+HLConditions <- thisData$ADULT==TRUE & thisData$SPEAKHL==TRUE & !thisData$SPEAKNoENG & !thisData$IMMIGADULT
+
+# adult population
+adultPopulation <- xtabs(PERWT ~ STATEFIP, data=thisData)
+head(adultPopulation)
+write.csv(adultPopulation,file=paste("Output00_TableAdultStatesPopulation",fileYear,".csv",sep=""))
+
+# all people
+sum(thisData[,"PERWT"])
+# all people who speak HL at home
+sum(thisData[thisData$SPEAKHL==TRUE,"PERWT"])
+# all people who are HL according to my criteira
+sum(thisData[HLConditions,"PERWT"])
+
+# U.S. population by race
+tableRace <- xtabs(PERWT ~ RACESING, data=thisData)
+head(tableRace)
+write.csv(tableRace,file=paste("Output01_TableRace",fileYear,".csv",sep=""))
+
+# U.S. Hispanic population
+tableHipanics <- xtabs(PERWT ~ HISPAN, data=thisData)
+head(tableHipanics)
+write.csv(tableHipanics,file=paste("Output02_TableRaceHispanic",fileYear,".csv",sep=""))
+
+# Heritage language speakers by state
+HLTableOrder = rev(order(colSums(xtabs(PERWT ~ STATEFIP + LANGUAGE, data=thisData[HLConditions,]))))
+tableAllHLSpeakersState <- xtabs(PERWT ~ STATEFIP + LANGUAGE, data=thisData[thisData$SPEAKHL==TRUE,])
+head(tableAllHLSpeakersState)
+write.csv(tableAllHLSpeakersState[,HLTableOrder],file=paste("Output03_TableAllHLSpeakersByState",fileYear,".csv",sep=""))
+
+# Heritage language speakers by region
+tableHLSpeakersRegion <- xtabs(PERWT ~ REGION + LANGUAGE, data=thisData[HLConditions,])
+head(tableHLSpeakersRegion)
+write.csv(tableHLSpeakersRegion[,HLTableOrder],file=paste("Output04_TableHLSpeakersByRegion",fileYear,".csv",sep=""))
+
+# Heritage language speakers by language and by state
+tableHLSpeakersState <- xtabs(PERWT ~ STATEFIP + LANGUAGE, data=thisData[HLConditions,])
+head(tableHLSpeakersState)
+write.csv(tableHLSpeakersState[,HLTableOrder],file=paste("Output05_TableHLSpeakersByState",fileYear,".csv",sep=""))
+
+# Heritage language speakers by language and by PUMA
+tableHLSpeakersCONSPUMA <- xtabs(PERWT ~ CONSPUMA + LANGUAGE, data=thisData[HLConditions,])
+head(tableHLSpeakersCONSPUMA)
+write.csv(tableHLSpeakersCONSPUMA[,HLTableOrder],file=paste("Output06_TableHLSpeakersByCONSPUMA",fileYear,".csv",sep=""))
+
+tableHLSpeakersSpeakMETRO <- xtabs(PERWT ~ METRO + LANGUAGE, data=thisData[HLConditions,])
+head(tableHLSpeakersSpeakMETRO)
+write.csv(tableHLSpeakersSpeakMETRO[,HLTableOrder],file=paste("Output07_TableHLSpeakersByMetro",fileYear,".csv",sep=""))
+
+sum(thisData[thisData$USBorn==FALSE,"PERWT"])/sum(thisData[,"PERWT"])
+
+```
