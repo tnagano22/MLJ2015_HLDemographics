@@ -1,7 +1,7 @@
 RProcedureMLJ2015NumHeritageSpeakers
 ================
 Tomonori Nagano
-2015-12-31
+2015-12-31 (updated on 2026-01-13)
 
 # RProcedureMLJ2015NumHeritageSpeakers
 
@@ -1331,3 +1331,11 @@ sum(thisData[thisData$USBorn==FALSE,"PERWT"])/sum(thisData[,"PERWT"])
 ```
 
     ## [1] 0.06691623
+
+## Updates (Tuesday, January 13, 2026)
+
+- Added a standalone R Markdown analysis notebook (`MLJ2015_HLDemographics_Analysis.Rmd`) with embedded R code (no external `source()`), so the full workflow is self-contained.
+- Improved the analysis script logic (now embedded in the Rmd): modular load/prepare/analyze steps, zip-aware SPSS loading, safer handling for missing variables, and consistent output writing.
+- Expanded the analysis to iterate over 1980, 1990, 2000, 2010, and 2020 IPUMS samples (including `.sav.zip` support for 2020).
+- Added new outputs for HL analysis by ethnicity, race, education, income (binned), age (binned), and immigration generation, with HL vs non-HL counts and proportions included in outputs 8-13.
+- Added concise HTML output snippets for tables (prints a small sample instead of full tables) and clarified the current HL definition and derived-variable rules in the Rmd.
